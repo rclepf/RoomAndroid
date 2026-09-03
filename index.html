@@ -136,6 +136,25 @@
         ul { padding-left: 1.2rem; }
         li { margin-bottom: 0.6rem; }
 
+        .tree-box { background: #FAFBFC; border: 1px solid var(--line); border-radius: 8px; padding: 1.3rem 1.5rem; margin: 1.2rem 0; }
+        .tree-box .tree-title { font-weight: 700; font-size: 0.92rem; margin-bottom: 0.8rem; color: var(--text); }
+        .tree-pre {
+            background-color: var(--code-bg);
+            color: var(--code-text);
+            padding: 1.2rem 1.4rem;
+            border-radius: 8px;
+            margin: 0;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.84rem;
+            line-height: 1.6;
+        }
+        .tag-new { color: #6EE7B7; font-weight: 700; }
+        .tag-edit { color: #93C5FD; font-weight: 700; }
+        .tag-del { color: #FCA5A5; font-weight: 700; }
+        .tag-same { color: #8A93A0; font-weight: 700; }
+        .tree-legend { display: flex; gap: 1.2rem; flex-wrap: wrap; margin-top: 0.8rem; font-size: 0.82rem; color: var(--text-muted); }
+
         .step-box { background-color: #FAFBFC; border: 1px solid var(--line); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.8rem; scroll-margin-top: 76px; }
         .step-box h3 { margin-top: 0; color: var(--text); display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.4rem; }
         .step-progress { font-family: var(--font-mono); font-size: 0.74rem; font-weight: 600; color: var(--text-muted); background: #EEF1F5; padding: 0.2rem 0.6rem; border-radius: 4px; }
@@ -390,6 +409,37 @@ class MainActivity : ComponentActivity() {
 }</code></pre>
                 </div>
                 <div class="tip-box"><strong>Seguindo o Caminho B:</strong> o Passo 1 abaixo (modelo <code>Livro</code>) é idêntico ao da aula passada — copie normalmente antes de seguir para o Passo 2, que já é conteúdo novo de hoje.</div>
+            </div>
+
+            <div class="tree-box">
+                <div class="tree-title">🗂️ Mapa de Pastas — o que muda em relação à aula passada</div>
+                <p style="margin-top:0; font-size:0.9rem; color:var(--text-muted);">Esta aula edita um projeto existente. O mapa abaixo mostra exatamente o que apagar, o que criar e o que só editar — siga por ele se ficar em dúvida sobre onde mexer.</p>
+<pre class="tree-pre">app
+ └─ java
+     └─ com.seunome.biblioteca
+          ├─ model
+          │    └─ Livro.kt                  <span class="tag-same">sem mudança</span>
+          ├─ database
+          │    ├─ DatabaseHelper.kt         <span class="tag-del">apagar este arquivo</span>
+          │    ├─ LivroEntity.kt            <span class="tag-new">novo</span>
+          │    ├─ LivroDao.kt               <span class="tag-new">novo</span>
+          │    └─ BibliotecaDatabase.kt     <span class="tag-new">novo</span>
+          ├─ network                        <span class="tag-new">pacote novo</span>
+          │    └─ OpenLibraryService.kt     <span class="tag-new">novo</span>
+          ├─ repository
+          │    └─ LivroRepository.kt        <span class="tag-edit">reescrever</span>
+          ├─ viewmodel
+          │    └─ BibliotecaViewModel.kt    <span class="tag-edit">reescrever</span>
+          ├─ ui
+          │    └─ BibliotecaScreen.kt       <span class="tag-edit">reescrever</span>
+          └─ MainActivity.kt                <span class="tag-same">sem mudança</span></pre>
+                <div class="tree-legend">
+                    <span><span class="tag-new">■</span> novo — criar do zero</span>
+                    <span><span class="tag-edit">■</span> reescrever</span>
+                    <span><span class="tag-same">■</span> sem mudança</span>
+                    <span><span class="tag-del">■</span> apagar</span>
+                </div>
+                <div class="warn-box" style="margin-top:0.8rem; margin-bottom:0;"><strong>Antes de apagar o <code>DatabaseHelper.kt</code>:</strong> confirme que nenhum outro arquivo ainda importa ele (Android Studio sublinha em vermelho se sobrar alguma referência). Use <strong>Edit &gt; Find &gt; Find in Files</strong> e busque por "DatabaseHelper" no projeto inteiro pra garantir que não sobrou nada.</div>
             </div>
 
             <div class="step-box" id="passo-1">
