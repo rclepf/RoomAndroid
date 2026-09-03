@@ -301,6 +301,7 @@
             <p>Hoje precisamos das duas famílias de dependência juntas: Retrofit (rede) e Room (persistência), além da permissão de internet.</p>
 
             <h3>A. Permissão de Rede (AndroidManifest.xml)</h3>
+            <p>Se você continuou o projeto da aula passada (Biblioteca com SQLite), essa permissão ainda não existe — insira a linha abaixo imediatamente acima da tag de abertura <code>&lt;application&gt;</code>:</p>
             <div class="code-container">
                 <div class="code-header">
                     <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
@@ -348,6 +349,48 @@
             <div class="file-tag">06_livecoding/</div>
             <h2>Live Coding Passo a Passo — Biblioteca Sincronizada</h2>
             <p>O pacote <code>model</code> não muda. O pacote <code>database</code> é reescrito com Room. Ganhamos um pacote <code>network</code> novo. <code>repository</code>, <code>viewmodel</code> e <code>ui</code> são atualizados.</p>
+
+            <div class="step-box" id="passo-0">
+                <h3>Passo 0 — Retomando (ou Recriando) o Projeto <span class="step-progress">setup</span></h3>
+                <p><strong>Caminho A — você tem o projeto da aula passada:</strong> abra-o normalmente no Android Studio. Sua <code>MainActivity</code> já chama <code>BibliotecaScreen()</code> — nada muda nela hoje. Pode ir direto pro Passo 1.</p>
+                <p><strong>Caminho B — você não tem o projeto (perdeu, trocou de computador, faltou na aula passada):</strong></p>
+                <ol>
+                    <li>Crie um projeto novo: <strong>New Project &gt; Empty Activity</strong> (Compose), <strong>Name:</strong> BibliotecaApp, <strong>Package name:</strong> <code>com.seunome.biblioteca</code>, <strong>Language:</strong> Kotlin, <strong>Minimum SDK:</strong> API 24+.</li>
+                    <li>Crie os pacotes <code>model</code>, <code>database</code>, <code>repository</code>, <code>viewmodel</code> e <code>ui</code> (botão direito no pacote base → <strong>New &gt; Package</strong>).</li>
+                    <li>Edite o <code>MainActivity.kt</code> gerado pelo template para chamar <code>BibliotecaScreen()</code>:</li>
+                </ol>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                        <span class="fname">MainActivity.kt</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                    </div>
+<pre><code>package com.seunome.biblioteca
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import com.seunome.biblioteca.ui.BibliotecaScreen
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    BibliotecaScreen()
+                }
+            }
+        }
+    }
+}</code></pre>
+                </div>
+                <div class="tip-box"><strong>Seguindo o Caminho B:</strong> o Passo 1 abaixo (modelo <code>Livro</code>) é idêntico ao da aula passada — copie normalmente antes de seguir para o Passo 2, que já é conteúdo novo de hoje.</div>
+            </div>
 
             <div class="step-box" id="passo-1">
                 <h3>Passo 1 — O Modelo Continua o Mesmo <span class="step-progress">1 de 7</span></h3>
