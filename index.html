@@ -54,7 +54,7 @@
         .editor-body { padding: 2.2rem 2rem 2.4rem; text-align: left; }
         .editor-body .comment-line { font-family: var(--font-mono); font-size: 0.85rem; color: var(--code-comment); margin: 0 0 1rem 0; }
 
-        header h1 { margin: 0; font-size: 2.1rem; letter-spacing: -0.5px; font-weight: 700; color: #F5F7FA; }
+        header h1 { margin: 0; font-size: 2.1rem; letter-spacing: -0.5px; font-weight: 700; color: #EDEFF2; transform: translateZ(0); }
         header p.subtitle { font-size: 1.05rem; color: #AEB6C2; margin: 0.7rem 0 0 0; max-width: 58ch; }
 
         nav { background: var(--ink); padding: 0.7rem 1rem; position: sticky; top: 0; border-bottom: 1px solid var(--ink-line); z-index: 100; }
@@ -289,8 +289,12 @@
 
         <section id="repository-ssot" class="acc-arch">
             <div class="file-tag">04_repository_ssot.kt</div>
-            <h2>Aprofundamento: o Repository como Fonte Única de Verdade</h2>
+            <h2>O Repository como Fonte Única de Verdade</h2>
             <p>Com Room e API convivendo no mesmo Repository, surge uma pergunta de arquitetura: quem a tela deveria escutar — a API ou o banco? A resposta do padrão <strong>Single Source of Truth (SSoT)</strong> é: <em>só o banco</em>. A API existe apenas para alimentar o Room.</p>
+
+            <div class="warn-box">
+                <strong>Cenário sem SSoT, pra entender o problema que ele resolve:</strong> imagine que a tela lesse a API diretamente e o Room fosse só um "plano B" separado. Toda tela precisaria de uma lógica do tipo <em>"tento a API; se der erro, busco no Room; se os dois derem resultados diferentes, qual eu mostro?"</em> — repetida em cada lugar que precisar dos dados. Com SSoT, essa pergunta desaparece: existe um único lugar de leitura (o Room), então nunca há dois resultados conflitantes pra decidir entre.
+            </div>
 
             <div class="flow-diagram">
                 <div class="flow-box api">API<br><small>Open Library</small></div>
@@ -312,6 +316,9 @@
             <div class="tip-box">
                 <strong>Consequência prática:</strong> se a busca falhar (sem internet, por exemplo), os livros já salvos continuam na tela normalmente — só a tentativa de buscar mais falha, isolada num estado separado de erro.
             </div>
+
+            <h3>O que torna o Flow "automático"</h3>
+            <p>Um <code>Flow</code> vindo de uma <code>@Query</code> do Room não é uma lista fixa — é uma <strong>assinatura</strong>. O Room instrumenta a tabela para avisar todo mundo que está observando sempre que uma linha muda. Concretamente: quando <code>buscarEArmazenar()</code> chama <code>dao.insertAll(...)</code>, o Room detecta a escrita na tabela <code>livros</code> e empurra uma nova lista pra qualquer <code>Flow</code> que esteja observando aquela tabela — sem que ninguém precise chamar um "atualizar tela" manualmente. É por isso que a UI não tem nenhum código do tipo <code>onSearchComplete { refreshList() }</code>: a atualização acontece como efeito colateral automático de gravar no banco.</p>
         </section>
 
         <section id="setup" class="acc-neutral">
@@ -343,6 +350,8 @@
     id("com.google.devtools.ksp")
 }</code></pre>
             </div>
+
+            <div class="tip-box"><strong>O que o KSP faz de verdade:</strong> as anotações <code>@Entity</code>, <code>@Dao</code> e <code>@Database</code> sozinhas não fazem nada em tempo de execução — são só "marcações". O KSP (<em>Kotlin Symbol Processing</em>) lê essas marcações <strong>durante a compilação</strong> e gera, automaticamente, as classes Kotlin de verdade que implementam o SQL por trás delas (o equivalente ao <code>DatabaseHelper</code> que vocês escreveram à mão na aula passada). Por isso o app não compila sem o plugin: sem ele, as anotações ficam sem nenhuma implementação gerada por trás.</div>
 
             <h3>C. Dependências</h3>
             <div class="code-container">
@@ -699,6 +708,15 @@ class BibliotecaViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 }</code></pre>
+                </div>
+                <div class="tip-box">
+                    <strong>Decifrando <code>.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())</code>:</strong>
+                    <ul style="margin-top:0.5rem; margin-bottom:0;">
+                        <li><code>repository.observeLivros()</code> devolve um <code>Flow</code> "frio" — ele só começa a observar o Room quando alguém de fato se inscreve nele.</li>
+                        <li><code>stateIn</code> transforma esse <code>Flow</code> num <code>StateFlow</code>: sempre guarda o <strong>último valor</strong>, para que a tela tenha algo pra mostrar imediatamente, mesmo antes de uma nova emissão.</li>
+                        <li><code>SharingStarted.WhileSubscribed(5000)</code> diz: "continue observando o Room enquanto a tela estiver visível, e por mais 5 segundos depois que ela sair de tela" — esse pequeno atraso evita reiniciar a observação do zero em rotações rápidas de tela ou trocas de abas.</li>
+                        <li><code>emptyList()</code> é o valor inicial, usado só no instante entre o app abrir e o Room responder pela primeira vez.</li>
+                    </ul>
                 </div>
             </div>
 
