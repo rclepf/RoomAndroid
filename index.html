@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room e Integração com APIs Externas</title>
+    <style>
+        :root {
+            --ink: #14171C;
+            --ink-soft: #1F242C;
+            --ink-line: #2B313B;
+            --bg: #EEF1F5;
+            --surface: #FFFFFF;
+            --line: #E2E6EB;
+            --text: #1B1E23;
+            --text-muted: #5B6470;
+            --api-color: #E3350D;
+            --arch-color: #2F6FED;
+            --async-color: #0D9488;
+            --db-color: #059669;
+            --code-bg: #0F1115;
+            --code-text: #D6DEE7;
+            --code-comment: #7A9F6E;
+            --focus-ring: #2F6FED;
+            --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { font-family: var(--font-sans); line-height: 1.6; margin: 0; padding: 0; background-color: var(--bg); color: var(--text); }
+
+        a:focus-visible, button:focus-visible, .step-nav-link:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+
+        .kw-arch { color: var(--arch-color); font-weight: 700; }
+        .kw-net { color: var(--api-color); font-weight: 700; }
+        .kw-async { color: var(--async-color); font-weight: 700; }
+        .kw-db { color: var(--db-color); font-weight: 700; }
+        strong { color: #000000; font-weight: 700; }
+        code { font-family: var(--font-mono); background: #E7EAEF; padding: 1px 6px; border-radius: 4px; font-size: 0.88em; }
+        pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; color: inherit; }
+
+        header { background: var(--ink); padding: 3rem 1.2rem 2.6rem; }
+
+        .editor-window { max-width: 720px; margin: 0 auto; background: var(--ink-soft); border-radius: 10px; border: 1px solid var(--ink-line); overflow: hidden; }
+        .editor-titlebar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #101317; border-bottom: 1px solid var(--ink-line); }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .dot.d-api { background: var(--api-color); }
+        .dot.d-db { background: var(--db-color); }
+        .dot.d-async { background: var(--async-color); }
+
+        .editor-titlebar .filename { margin-left: 8px; font-family: var(--font-mono); font-size: 0.8rem; color: #7D8590; }
+        .editor-body { padding: 2.2rem 2rem 2.4rem; text-align: left; }
+        .editor-body .comment-line { font-family: var(--font-mono); font-size: 0.85rem; color: var(--code-comment); margin: 0 0 1rem 0; }
+
+        header h1 { margin: 0; font-size: 2.1rem; letter-spacing: -0.5px; font-weight: 800; color: #F5F7FA; }
+        header p.subtitle { font-size: 1.05rem; color: #AEB6C2; margin: 0.7rem 0 0 0; max-width: 58ch; }
+
+        nav { background: var(--ink); padding: 0.7rem 1rem; position: sticky; top: 0; border-bottom: 1px solid var(--ink-line); z-index: 100; }
+        .nav-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: nowrap; gap: 1rem; }
+        .nav-brand { font-family: var(--font-mono); font-weight: 600; color: #7D8590; font-size: 0.85rem; white-space: nowrap; padding-top: 0.5rem; margin-right: 0.4rem; }
+        .nav-links { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+        .nav-links::-webkit-scrollbar { display: none; }
+
+        nav a.step-nav-link {
+            display: inline-flex; align-items: center; gap: 6px; color: #C7CDD6; text-decoration: none;
+            font-weight: 600; font-size: 0.82rem; white-space: nowrap; padding: 0.5rem 0.55rem; border-radius: 6px;
+            transition: all 0.15s ease; border-bottom: 2px solid transparent;
+        }
+        nav a.step-nav-link .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.6; }
+        nav a.step-nav-link:hover { color: #FFFFFF; background: rgba(255,255,255,0.06); }
+        nav a.step-nav-link.active { color: #FFFFFF; border-bottom-color: currentColor; }
+        nav a.step-nav-link.active .nav-dot { opacity: 1; }
+
+        .nav-toggle { display: none; background: none; border: 1px solid var(--ink-line); color: #C7CDD6; border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 1rem; cursor: pointer; font-family: var(--font-sans); }
+
+        main { max-width: 980px; margin: 2.2rem auto; padding: 0 1.5rem; }
+
+        section {
+            background: var(--surface); padding: 2.3rem 2.3rem 2.3rem 2rem; border-radius: 8px; margin-bottom: 1.6rem;
+            border: 1px solid var(--line); border-left: 4px solid var(--text-muted); scroll-margin-top: 76px;
+        }
+
+        section.acc-arch { border-left-color: var(--arch-color); }
+        section.acc-db { border-left-color: var(--db-color); }
+        section.acc-api { border-left-color: var(--api-color); }
+        section.acc-neutral { border-left-color: #A9B1BC; }
+
+        .file-tag { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+
+        h2 { font-size: 1.55rem; color: #14171C; margin-top: 0; margin-bottom: 1.3rem; font-weight: 750; letter-spacing: -0.3px; }
+        h3 { font-size: 1.18rem; color: #2A2E34; margin-top: 1.7rem; font-weight: 700; }
+        p, li { max-width: 72ch; }
+
+        .flow-diagram {
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap;
+            margin: 1.8rem 0; padding: 1.5rem; background: #F7F9FC; border-radius: 10px; border: 1px solid var(--line);
+        }
+
+        .flow-box { padding: 0.9rem 1.1rem; border-radius: 8px; font-weight: 700; font-size: 0.9rem; text-align: center; min-width: 112px; border: 1px solid; }
+        .flow-box.api { background: #FDECEA; color: var(--api-color); border-color: #F7D0CA; }
+        .flow-box.room { background: #E9F8F1; color: var(--db-color); border-color: #BEE8D6; }
+        .flow-box.vm { background: #EAF1FE; color: var(--arch-color); border-color: #C9DBFB; }
+        .flow-box.ui { background: #E6F5F4; color: var(--async-color); border-color: #BFE3DE; }
+
+        .flow-arrow { font-size: 1.3rem; color: var(--text-muted); font-weight: 700; }
+        .flow-caption { width: 100%; text-align: center; font-size: 0.85rem; color: var(--text-muted); margin-top: 0.6rem; }
+
+        .data-table { width: 100%; border-collapse: collapse; margin: 1.2rem 0; font-size: 0.9rem; }
+        .data-table th, .data-table td { border: 1px solid var(--line); padding: 0.65rem 0.85rem; text-align: left; vertical-align: top; }
+        .data-table.accent-db th { background: #EAFBF3; color: var(--db-color); font-weight: 700; }
+        .data-table .before { color: var(--text-muted); text-decoration: line-through; }
+        .data-table .after { color: var(--db-color); font-weight: 700; }
+
+        .code-container { position: relative; margin: 1.5rem 0; border-radius: 8px; overflow: hidden; }
+        .code-header {
+            background-color: #171A1F; color: #8A93A0; padding: 0.55rem 0.9rem; font-family: var(--font-mono);
+            font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+        }
+        .code-header .dots { display: flex; gap: 5px; }
+        .code-header .dots .dot { width: 8px; height: 8px; }
+        .code-header .fname { flex: 1; }
+
+        .copy-btn {
+            background: #262B33; color: #D6DEE7; border: none; border-radius: 5px; padding: 0.25rem 0.6rem;
+            font-size: 0.76rem; cursor: pointer; font-family: var(--font-sans); transition: background 0.15s ease;
+        }
+        .copy-btn:hover { background: #333A44; }
+
+        pre {
+            background-color: var(--code-bg); color: var(--code-text); padding: 1.4rem 1.5rem; margin: 0;
+            overflow-x: auto; font-family: var(--font-mono); font-size: 0.86rem;
+        }
+
+        ul { padding-left: 1.2rem; }
+        li { margin-bottom: 0.6rem; }
+
+        .step-box { background-color: #FAFBFC; border: 1px solid var(--line); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.8rem; scroll-margin-top: 76px; }
+        .step-box h3 { margin-top: 0; color: var(--text); display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.4rem; }
+        .step-progress { font-family: var(--font-mono); font-size: 0.74rem; font-weight: 600; color: var(--text-muted); background: #EEF1F5; padding: 0.2rem 0.6rem; border-radius: 4px; }
+
+        .checklist { background: #F3F9F6; border: 1px solid #CDE9DE; border-left: 4px solid var(--async-color); border-radius: 8px; padding: 1.5rem 1.8rem; margin-top: 1.5rem; }
+        .checklist h3 { color: #0D7A5F; margin-top: 0; }
+        .checklist ul { list-style: none; padding-left: 0; }
+        .checklist li { padding-left: 1.8rem; position: relative; }
+        .checklist li::before { content: "✓"; position: absolute; left: 0; color: #0D7A5F; font-weight: 800; }
+
+        .tip-box { background: #EAFBF3; border-left: 4px solid var(--db-color); padding: 1rem 1.3rem; border-radius: 6px; margin: 1.2rem 0; font-size: 0.95rem; }
+        .tip-box strong { color: #04703F; }
+
+        .net-box { background: #FDECEA; border-left: 4px solid var(--api-color); padding: 1rem 1.3rem; border-radius: 6px; margin: 1.2rem 0; font-size: 0.95rem; }
+        .net-box strong { color: #A31D03; }
+
+        .warn-box { background: #FFF4E5; border-left: 4px solid #C97A0F; padding: 1rem 1.3rem; border-radius: 6px; margin: 1.2rem 0; font-size: 0.95rem; }
+        .warn-box strong { color: #8A5A0C; }
+
+        .cta-section { border: none; padding: 0; background: transparent; }
+        .terminal-window { background: var(--ink-soft); border-radius: 10px; border: 1px solid var(--ink-line); overflow: hidden; }
+        .terminal-titlebar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #101317; border-bottom: 1px solid var(--ink-line); }
+        .terminal-titlebar .filename { margin-left: 8px; font-family: var(--font-mono); font-size: 0.8rem; color: #7D8590; }
+        .terminal-body { padding: 2rem 2.2rem 2.3rem; font-family: var(--font-mono); }
+        .term-line { color: #9AA4B2; margin: 0 0 0.4rem 0; font-size: 0.92rem; }
+        .term-prompt { color: var(--async-color); font-weight: 700; margin-right: 8px; }
+        .term-output { color: #C7CDD6; font-family: var(--font-sans); font-size: 0.95rem; line-height: 1.6; max-width: 62ch; margin: 0.6rem 0 1.6rem 0; }
+        .term-cta { display: inline-flex; align-items: center; gap: 8px; color: var(--db-color); text-decoration: none; font-weight: 700; font-size: 1rem; padding: 0.5rem 0; border-bottom: 1px solid transparent; }
+        .term-cta:hover { border-bottom-color: var(--db-color); }
+        .cta-meta { margin-top: 1rem; font-size: 0.85rem; color: #7D8590; font-family: var(--font-sans); }
+
+        footer { text-align: center; padding: 2.6rem; background: var(--ink); color: #7D8590; font-size: 0.88rem; }
+
+        @media (max-width: 860px) {
+            header h1 { font-size: 1.6rem; }
+            .nav-toggle { display: inline-flex; }
+            .nav-links { display: none; width: 100%; flex-direction: column; align-items: stretch; overflow-x: visible; margin-top: 0.6rem; }
+            .nav-links.open { display: flex; }
+            .nav-inner { flex-wrap: wrap; gap: 0.4rem; }
+            .nav-brand { padding-top: 0; }
+            section { padding: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="editor-window">
+            <div class="editor-titlebar">
+                <span class="dot d-api"></span>
+                <span class="dot d-db"></span>
+                <span class="dot d-async"></span>
+                <span class="filename">biblioteca-android/LivroRepository.kt</span>
+            </div>
+            <div class="editor-body">
+                <p class="comment-line">// guia de aula — Room + Retrofit + Single Source of Truth</p>
+                <h1>Room e Integração com APIs Externas</h1>
+                <p class="subtitle">Substituindo o SQLite manual por Room e conectando sua Biblioteca a um catálogo de livros de verdade — a Open Library API.</p>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <div class="nav-inner">
+            <span class="nav-brand">biblioteca-android/</span>
+            <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navLinks">Menu</button>
+            <div class="nav-links" id="navLinks">
+                <a class="step-nav-link" href="#onde-paramos"><span class="nav-dot"></span>Onde Paramos</a>
+                <a class="step-nav-link" href="#room-migracao"><span class="nav-dot"></span>Migrando p/ Room</a>
+                <a class="step-nav-link" href="#api-livros"><span class="nav-dot"></span>API de Livros</a>
+                <a class="step-nav-link" href="#repository-ssot"><span class="nav-dot"></span>Repository + SSoT</a>
+                <a class="step-nav-link" href="#setup"><span class="nav-dot"></span>Configuração</a>
+                <a class="step-nav-link" href="#livecoding"><span class="nav-dot"></span>Live Coding</a>
+                <a class="step-nav-link" href="#atividade-cta"><span class="nav-dot"></span>Atividade</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+
+        <section id="onde-paramos" class="acc-db">
+            <div class="file-tag">01_onde_paramos.md</div>
+            <h2>Onde Paramos — e Para Onde Vamos</h2>
+            <p>Na aula passada, vocês construíram uma Biblioteca inteira com <code>SQLiteOpenHelper</code>: escreveram o <code>CREATE TABLE</code> à mão, montaram <code>ContentValues</code> pra inserir e percorreram <code>Cursor</code> pra ler. Funcionou — mas exigiu bastante código repetitivo.</p>
+            <p>Hoje, duas coisas mudam ao mesmo tempo: o banco escrito à mão vira <span class="kw-db">Room</span> (a biblioteca que automatiza o que vocês fizeram manualmente), e a Biblioteca deixa de depender só do que o usuário digita — ela passa a <span class="kw-net">buscar livros de verdade numa API</span> e guardar o resultado localmente.</p>
+
+            <div class="tip-box">
+                <strong>Nada do trabalho passado se perde:</strong> o modelo <code>Livro</code> continua o mesmo. A arquitetura em camadas (model / database / repository / viewmodel / ui) continua a mesma. Só o <em>conteúdo</em> do pacote <code>database</code> e do <code>Repository</code> muda.
+            </div>
+        </section>
+
+        <section id="room-migracao" class="acc-db">
+            <div class="file-tag">02_room_migracao.kt</div>
+            <h2>Migrando de SQLite Manual para Room</h2>
+            <p>Room não é um banco diferente — é uma camada de abstração sobre o mesmo SQLite que vocês já usaram. A diferença é que, em vez de escrever SQL e mapear <code>Cursor</code> à mão, vocês descrevem a estrutura com anotações e o Room gera o resto em tempo de compilação.</p>
+
+            <table class="data-table accent-db">
+                <thead><tr><th>Aula passada (manual)</th><th>Hoje (Room)</th></tr></thead>
+                <tbody>
+                    <tr><td class="before">execSQL("CREATE TABLE ...")</td><td class="after">@Entity numa data class</td></tr>
+                    <tr><td class="before">ContentValues + db.insert()</td><td class="after">@Insert numa interface @Dao</td></tr>
+                    <tr><td class="before">Cursor + moveToNext() manual</td><td class="after">Flow&lt;List&lt;Entity&gt;&gt; automático</td></tr>
+                    <tr><td class="before">SQLiteOpenHelper</td><td class="after">RoomDatabase (mesmo padrão singleton)</td></tr>
+                </tbody>
+            </table>
+
+            <div class="warn-box">
+                <strong>Importante deixar claro pra turma:</strong> Room não substitui o entendimento de SQLite — ele automatiza. Quem escreveu a versão manual na aula passada agora entende exatamente o que essas anotações estão gerando por baixo dos panos.
+            </div>
+        </section>
+
+        <section id="api-livros" class="acc-api">
+            <div class="file-tag">03_api_livros.kt</div>
+            <h2>Consumindo uma API de Livros de Verdade</h2>
+            <p>Vamos usar a <strong>Open Library API</strong> — gratuita, pública e sem necessidade de chave de acesso. Um único endpoint de busca:</p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                    <span class="fname">GET</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                </div>
+<pre><code>https://openlibrary.org/search.json?q=harry+potter&limit=20</code></pre>
+            </div>
+
+            <p>A resposta traz uma lista <code>docs</code>, cada item com título, lista de autores e ano de primeira publicação — exatamente os três campos que já existem no modelo <code>Livro</code>.</p>
+
+            <div class="net-box">
+                <strong>Reaproveitando a aula de APIs:</strong> Retrofit + Coroutines continuam do jeito que já foi ensinado — <code>suspend fun</code>, <code>Dispatchers.IO</code>, conversão de JSON com GSON. Nada disso é novo; é a mesma disciplina aplicada a um endpoint diferente.
+            </div>
+        </section>
+
+        <section id="repository-ssot" class="acc-arch">
+            <div class="file-tag">04_repository_ssot.kt</div>
+            <h2>Aprofundamento: o Repository como Fonte Única de Verdade</h2>
+            <p>Com Room e API convivendo no mesmo Repository, surge uma pergunta de arquitetura: quem a tela deveria escutar — a API ou o banco? A resposta do padrão <strong>Single Source of Truth (SSoT)</strong> é: <em>só o banco</em>. A API existe apenas para alimentar o Room.</p>
+
+            <div class="flow-diagram">
+                <div class="flow-box api">API<br><small>Open Library</small></div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box room">Room<br><small>Fonte única</small></div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box vm">ViewModel<br><small>Flow</small></div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box ui">UI<br><small>Compose</small></div>
+                <div class="flow-caption">A tela nunca lê da API diretamente. Ela observa o Room; a API só escreve nele quando o usuário busca algo novo.</div>
+            </div>
+
+            <h3>Duas responsabilidades, duas funções</h3>
+            <ul>
+                <li><strong>Observar</strong> — <code>observeLivros(): Flow&lt;List&lt;Livro&gt;&gt;</code>, sempre lendo do Room.</li>
+                <li><strong>Buscar e Armazenar</strong> — <code>suspend fun buscarEArmazenar(query: String)</code>, que consulta a API e grava o resultado no Room. Não devolve nada direto pra tela.</li>
+            </ul>
+
+            <div class="tip-box">
+                <strong>Consequência prática:</strong> se a busca falhar (sem internet, por exemplo), os livros já salvos continuam na tela normalmente — só a tentativa de buscar mais falha, isolada num estado separado de erro.
+            </div>
+        </section>
+
+        <section id="setup" class="acc-neutral">
+            <div class="file-tag">05_setup.gradle</div>
+            <h2>Configuração de Dependências</h2>
+            <p>Hoje precisamos das duas famílias de dependência juntas: Retrofit (rede) e Room (persistência), além da permissão de internet.</p>
+
+            <h3>A. Permissão de Rede (AndroidManifest.xml)</h3>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                    <span class="fname">AndroidManifest.xml</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                </div>
+<pre><code>&lt;uses-permission android:name="android.permission.INTERNET" /&gt;</code></pre>
+            </div>
+
+            <h3>B. Plugin KSP (necessário para o Room)</h3>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                    <span class="fname">build.gradle.kts (Module :app)</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                </div>
+<pre><code>plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("com.google.devtools.ksp")
+}</code></pre>
+            </div>
+
+            <h3>C. Dependências</h3>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                    <span class="fname">build.gradle.kts (Module :app)</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                </div>
+<pre><code>dependencies {
+    // Retrofit + GSON: consumo da Open Library API
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // Room: persistência local, agora automatizada
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+}</code></pre>
+            </div>
+        </section>
+
+        <section id="livecoding" class="acc-neutral">
+            <div class="file-tag">06_livecoding/</div>
+            <h2>Live Coding Passo a Passo — Biblioteca Sincronizada</h2>
+            <p>O pacote <code>model</code> não muda. O pacote <code>database</code> é reescrito com Room. Ganhamos um pacote <code>network</code> novo. <code>repository</code>, <code>viewmodel</code> e <code>ui</code> são atualizados.</p>
+
+            <div class="step-box" id="passo-1">
+                <h3>Passo 1 — O Modelo Continua o Mesmo <span class="step-progress">1 de 7</span></h3>
+                <p><strong>Local:</strong> pacote <code>model</code> &nbsp;|&nbsp; <strong>Arquivo:</strong> <code>Livro.kt</code> (sem alterações)</p>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                        <span class="fname">model/Livro.kt</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                    </div>
+<pre><code>package com.seunome.biblioteca.model
+
+data class Livro(
+    val id: Long = 0,
+    val titulo: String,
+    val autor: String,
+    val ano: Int
+)</code></pre>
+                </div>
+                <div class="tip-box"><strong>Sem mudanças de propósito:</strong> o domínio da aplicação não muda — só a forma como ele é persistido. Isso é a prova de que a arquitetura em camadas estava bem feita desde a aula passada.</div>
+            </div>
+
+            <div class="step-box" id="passo-2">
+                <h3>Passo 2 — LivroEntity, LivroDao e BibliotecaDatabase <span class="step-progress">2 de 7</span></h3>
+                <p><strong>Local:</strong> pacote <code>database</code> &nbsp;|&nbsp; <strong>Apague</strong> o antigo <code>DatabaseHelper.kt</code> e crie os três arquivos abaixo.</p>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                        <span class="fname">database/LivroEntity.kt</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                    </div>
+<pre><code>package com.seunome.biblioteca.database
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "livros")
+data class LivroEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val titulo: String,
+    val autor: String,
+    val ano: Int
+)</code></pre>
+                </div>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                        <span class="fname">database/LivroDao.kt</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                    </div>
+<pre><code>package com.seunome.biblioteca.database
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface LivroDao {
+
+    @Query("SELECT * FROM livros ORDER BY ano DESC")
+    fun observeAll(): Flow&lt;List&lt;LivroEntity&gt;&gt;
+
+    @Insert
+    suspend fun insertAll(livros: List&lt;LivroEntity&gt;)
+}</code></pre>
+                </div>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                        <span class="fname">database/BibliotecaDatabase.kt</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                    </div>
+<pre><code>package com.seunome.biblioteca.database
+
+import android.content.Context
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+
+@Database(entities = [LivroEntity::class], version = 1, exportSchema = false)
+abstract class BibliotecaDatabase : RoomDatabase() {
+
+    abstract fun livroDao(): LivroDao
+
+    companion object {
+        @Volatile private var INSTANCE: BibliotecaDatabase? = null
+
+        fun getInstance(context: Context): BibliotecaDatabase {
+            return INSTANCE ?: synchronized(this) {
+                Room.databaseBuilder(
+                    context.applicationContext,
+                    BibliotecaDatabase::class.java,
+                    "biblioteca.db"
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+                    .also { INSTANCE = it }
+            }
+        }
+    }
+}</code></pre>
+                </div>
+                <div class="tip-box"><strong>Compare com a aula passada:</strong> onde antes existiam ~30 linhas de SQL e mapeamento manual, agora são três arquivos curtos e declarativos — mas o resultado final (uma tabela <code>livros</code> num banco SQLite) é idêntico.</div>
+            </div>
+
+            <div class="step-box" id="passo-3">
+                <h3>Passo 3 — A Camada de Rede: Open Library <span class="step-progress">3 de 7</span></h3>
+                <p><strong>Local:</strong> pacote <code>network</code> (novo) &nbsp;|&nbsp; <strong>Arquivo:</strong> <code>OpenLibraryService.kt</code></p>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                        <span class="fname">network/OpenLibraryService.kt</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                    </div>
+<pre><code>package com.seunome.biblioteca.network
+
+import com.google.gson.annotations.SerializedName
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.GET
+import retrofit2.http.Query
+
+data class OpenLibraryResponse(
+    val docs: List&lt;BookDoc&gt;
+)
+
+data class BookDoc(
+    val title: String,
+    @SerializedName("author_name") val authorName: List&lt;String&gt;?,
+    @SerializedName("first_publish_year") val firstPublishYear: Int?
+)
+
+interface OpenLibraryService {
+    @GET("search.json")
+    suspend fun buscarLivros(
+        @Query("q") query: String,
+        @Query("limit") limit: Int = 20
+    ): OpenLibraryResponse
+}
+
+object RetrofitClient {
+    private const val BASE_URL = "https://openlibrary.org/"
+
+    val api: OpenLibraryService by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(OpenLibraryService::class.java)
+    }
+}</code></pre>
+                </div>
+                <div class="net-box"><strong>Campos opcionais (<code>?</code>):</strong> nem todo livro da Open Library tem autor ou ano preenchido. Por isso <code>authorName</code> e <code>firstPublishYear</code> são anuláveis — tratamos isso na hora de converter para o domínio, no próximo passo.</div>
+            </div>
+
+            <div class="step-box" id="passo-4">
+                <h3>Passo 4 — Repository: Observar e Buscar <span class="step-progress">4 de 7</span></h3>
+                <p><strong>Local:</strong> pacote <code>repository</code> &nbsp;|&nbsp; <strong>Arquivo:</strong> <code>LivroRepository.kt</code></p>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                        <span class="fname">repository/LivroRepository.kt</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                    </div>
+<pre><code>package com.seunome.biblioteca.repository
+
+import com.seunome.biblioteca.database.LivroDao
+import com.seunome.biblioteca.database.LivroEntity
+import com.seunome.biblioteca.model.Livro
+import com.seunome.biblioteca.network.BookDoc
+import com.seunome.biblioteca.network.OpenLibraryService
+import com.seunome.biblioteca.network.RetrofitClient
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+class LivroRepository(
+    private val dao: LivroDao,
+    private val api: OpenLibraryService = RetrofitClient.api
+) {
+    // Observar: a tela se inscreve aqui uma única vez
+    fun observeLivros(): Flow&lt;List&lt;Livro&gt;&gt; =
+        dao.observeAll().map { entidades -> entidades.map { it.toDomain() } }
+
+    // Buscar e Armazenar: só alimenta o Room, não devolve nada direto pra tela
+    suspend fun buscarEArmazenar(query: String) {
+        val resposta = api.buscarLivros(query)
+        dao.insertAll(resposta.docs.map { it.toEntity() })
+    }
+}
+
+private fun LivroEntity.toDomain() = Livro(id = id, titulo = titulo, autor = autor, ano = ano)
+
+private fun BookDoc.toEntity() = LivroEntity(
+    titulo = title,
+    autor = authorName?.firstOrNull() ?: "Autor desconhecido",
+    ano = firstPublishYear ?: 0
+)</code></pre>
+                </div>
+            </div>
+
+            <div class="step-box" id="passo-5">
+                <h3>Passo 5 — ViewModel: AndroidViewModel + Dois Estados <span class="step-progress">5 de 7</span></h3>
+                <p><strong>Local:</strong> pacote <code>viewmodel</code> &nbsp;|&nbsp; <strong>Arquivo:</strong> <code>BibliotecaViewModel.kt</code></p>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                        <span class="fname">viewmodel/BibliotecaViewModel.kt</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                    </div>
+<pre><code>package com.seunome.biblioteca.viewmodel
+
+import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.seunome.biblioteca.database.BibliotecaDatabase
+import com.seunome.biblioteca.model.Livro
+import com.seunome.biblioteca.repository.LivroRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+sealed interface BuscaState {
+    object Idle : BuscaState
+    object Loading : BuscaState
+    data class Error(val message: String) : BuscaState
+}
+
+class BibliotecaViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository = LivroRepository(
+        dao = BibliotecaDatabase.getInstance(application).livroDao()
+    )
+
+    // Fonte única: sempre reflete o que está salvo no Room
+    val livros: StateFlow&lt;List&lt;Livro&gt;&gt; = repository.observeLivros()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    var buscaState: BuscaState by mutableStateOf(BuscaState.Idle)
+        private set
+
+    fun buscar(query: String) {
+        if (query.isBlank()) return
+        viewModelScope.launch {
+            buscaState = BuscaState.Loading
+            buscaState = try {
+                repository.buscarEArmazenar(query)
+                BuscaState.Idle
+            } catch (e: Exception) {
+                BuscaState.Error("Não foi possível buscar agora. Mostrando livros salvos.")
+            }
+        }
+    }
+}</code></pre>
+                </div>
+            </div>
+
+            <div class="step-box" id="passo-6">
+                <h3>Passo 6 — UI: Busca, Lista e Estado de Sincronização <span class="step-progress">6 de 7</span></h3>
+                <p><strong>Local:</strong> pacote <code>ui</code> &nbsp;|&nbsp; <strong>Arquivo:</strong> <code>BibliotecaScreen.kt</code></p>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="dots"><span class="dot d-api"></span><span class="dot d-db"></span><span class="dot d-async"></span></span>
+                        <span class="fname">ui/BibliotecaScreen.kt</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                    </div>
+<pre><code>package com.seunome.biblioteca.ui
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.seunome.biblioteca.viewmodel.BibliotecaViewModel
+import com.seunome.biblioteca.viewmodel.BuscaState
+
+@Composable
+fun BibliotecaScreen(viewModel: BibliotecaViewModel = viewModel()) {
+    var query by remember { mutableStateOf("") }
+    val livros by viewModel.livros.collectAsState()
+    val buscaState = viewModel.buscaState
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Buscar livro") },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            Button(onClick = { viewModel.buscar(query) }) { Text("Buscar") }
+        }
+
+        AnimatedVisibility(visible = buscaState is BuscaState.Loading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+        }
+
+        AnimatedVisibility(visible = buscaState is BuscaState.Error) {
+            Text(
+                text = (buscaState as? BuscaState.Error)?.message.orEmpty(),
+                color = Color(0xFFB32205),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyColumn {
+            items(livros, key = { it.id }) { livro ->
+                ListItem(
+                    headlineContent = { Text(livro.titulo) },
+                    supportingContent = { Text("${livro.autor} · ${livro.ano}") }
+                )
+            }
+        }
+    }
+}</code></pre>
+                </div>
+                <div class="tip-box"><strong>O ponto alto da aula:</strong> a lista (<code>LazyColumn</code>) nunca depende diretamente da busca. Ela só observa o Room. A busca só existe para alimentar o Room — exatamente o diagrama de Single Source of Truth, agora rodando de verdade.</div>
+            </div>
+
+            <div class="checklist">
+                <h3>Sua Biblioteca está sincronizada se…</h3>
+                <ul>
+                    <li>Buscar por um título real (ex: "harry potter") preenche a lista com resultados da Open Library.</li>
+                    <li>Fechar e reabrir o app mantém os livros buscados anteriormente, mesmo offline.</li>
+                    <li>Desligar a internet e tentar buscar mostra um aviso — sem apagar os livros já salvos.</li>
+                    <li>O Database Inspector mostra a tabela <code>livros</code> populada com dados vindos da API.</li>
+                    <li>Nenhuma classe de <code>ui</code> ou <code>viewmodel</code> importa Retrofit ou Room diretamente — só o Repository.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="atividade-cta" class="cta-section">
+            <div class="terminal-window">
+                <div class="terminal-titlebar">
+                    <span class="dot d-api"></span>
+                    <span class="dot d-db"></span>
+                    <span class="dot d-async"></span>
+                    <span class="filename">~/proxima-missao</span>
+                </div>
+                <div class="terminal-body">
+                    <p class="term-line"><span class="term-prompt">$</span> cat proxima_missao.md</p>
+                    <p class="term-output">Hoje a Biblioteca aprendeu a sincronizar com o mundo real. Agora é a vez de vocês aplicarem Room + API no app que escolheram na atividade anterior — Agenda, Tarefas ou Filmes.</p>
+                    <p class="term-line"><span class="term-prompt">$</span></p>
+                    <a class="term-cta" href="Atividade_Room_API.pdf" download>./baixar-atividade.pdf ↵</a>
+                    <p class="cta-meta">O PDF contém a missão completa, os requisitos obrigatórios e a rubrica de correção.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>Desenvolvimento Android Moderno &copy; 2026 · Room + Retrofit + Single Source of Truth</p>
+    </footer>
+
+    <script>
+        function copyCode(btn) {
+            const pre = btn.closest('.code-container').querySelector('pre');
+            navigator.clipboard.writeText(pre.innerText).then(() => {
+                const original = btn.textContent;
+                btn.textContent = 'Copiado!';
+                setTimeout(() => { btn.textContent = original; }, 1500);
+            });
+        }
+
+        const navToggle = document.getElementById('navToggle');
+        const navLinks = document.getElementById('navLinks');
+        navToggle.addEventListener('click', () => {
+            const isOpen = navLinks.classList.toggle('open');
+            navToggle.setAttribute('aria-expanded', isOpen);
+        });
+
+        const sections = document.querySelectorAll('main > section');
+        const links = document.querySelectorAll('.step-nav-link');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    links.forEach(link => {
+                        link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+                    });
+                }
+            });
+        }, { rootMargin: '-45% 0px -50% 0px' });
+        sections.forEach(sec => observer.observe(sec));
+    </script>
+
+</body>
+</html>
