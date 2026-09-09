@@ -91,7 +91,7 @@
 
         h2 { font-size: 1.55rem; color: #14171C; margin-top: 0; margin-bottom: 1.3rem; font-weight: 700; letter-spacing: -0.3px; }
         h3 { font-size: 1.18rem; color: #2A2E34; margin-top: 1.7rem; font-weight: 700; }
-        p, li { max-width: 72ch; }
+        p, li { max-width: none; }
 
         .flow-diagram {
             display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap;
@@ -197,6 +197,21 @@
             .nav-brand { padding-top: 0; }
             section { padding: 1.6rem; }
         }
+
+        .erro-item { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 1.2rem; overflow: hidden; }
+        .erro-titulo {
+            background: #FDECEA;
+            padding: 0.8rem 1.1rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: #A31D03;
+            font-weight: 700;
+            border-bottom: 1px solid var(--line);
+        }
+        .erro-corpo { padding: 1.1rem 1.3rem; font-size: 0.95rem; }
+        .erro-corpo p { margin-top: 0; }
+        .erro-corpo p:last-child { margin-bottom: 0; }
+        section.acc-fix { border-left-color: #C97A0F; }
     </style>
 </head>
 <body>
@@ -228,6 +243,7 @@
                 <a class="step-nav-link" href="#repository-ssot"><span class="nav-dot"></span>Repository + SSoT</a>
                 <a class="step-nav-link" href="#setup"><span class="nav-dot"></span>Configuração</a>
                 <a class="step-nav-link" href="#livecoding"><span class="nav-dot"></span>Live Coding</a>
+                <a class="step-nav-link" href="#erros"><span class="nav-dot"></span>Erros Comuns</a>
                 <a class="step-nav-link" href="#atividade-cta"><span class="nav-dot"></span>Atividade</a>
             </div>
         </div>
@@ -262,8 +278,43 @@
             </table>
 
             <div class="warn-box">
-                <strong>Importante deixar claro pra turma:</strong> Room não substitui o entendimento de SQLite — ele automatiza. Quem escreveu a versão manual na aula passada agora entende exatamente o que essas anotações estão gerando por baixo dos panos.
+                <strong>Room não substitui o entendimento de SQLite — ele automatiza.</strong> Quem escreveu a versão manual na aula passada agora entende exatamente o que essas anotações estão gerando por baixo dos panos.
             </div>
+
+            <h3>O que é um ORM, e por que ele existe</h3>
+            <p>O Room pertence a uma categoria de ferramentas chamada <strong>ORM</strong> (<em>Object-Relational Mapping</em>, ou mapeamento objeto-relacional). O nome descreve exatamente o problema que ela resolve: existe uma incompatibilidade natural entre dois mundos.</p>
+            <ul>
+                <li><strong>No código</strong>, pensamos em objetos: um <code>Livro</code> com propriedades, que pode conter outros objetos dentro.</li>
+                <li><strong>No banco relacional</strong>, tudo é tabela: linhas e colunas de tipos simples, sem hierarquia.</li>
+            </ul>
+            <p>Alguém precisa traduzir entre os dois formatos. Na aula passada, esse alguém era você — escrevendo <code>ContentValues</code> na ida e percorrendo o <code>Cursor</code> na volta. Um ORM automatiza essa tradução: você descreve o formato uma vez, com anotações, e a biblioteca gera o código de conversão.</p>
+            <p>ORMs não são exclusivos do Android nem do Kotlin. É um conceito presente em praticamente toda plataforma que fala com banco relacional. Reconhecer o padrão vale muito mais do que decorar as anotações do Room especificamente.</p>
+
+            <h3>O que o Room ganha (e o que ele cobra)</h3>
+            <table class="data-table accent-db">
+                <thead><tr><th>Vantagem</th><th>O que isso significa na prática</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Erros de SQL em tempo de compilação</strong></td>
+                        <td>Se você digitar errado o nome de uma coluna dentro de uma <code>@Query</code>, o projeto não compila. Na versão manual, esse mesmo erro só apareceria com o app rodando, na forma de um crash.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Muito menos código repetitivo</strong></td>
+                        <td>As ~30 linhas de <code>Cursor</code> e mapeamento manual da aula passada viram uma linha de anotação.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Atualização automática da tela</strong></td>
+                        <td>Com <code>Flow</code>, gravar no banco atualiza a interface sozinho. Sem isso, era preciso lembrar de reconsultar manualmente após cada escrita — e esquecer disso era um bug silencioso.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Segurança de thread</strong></td>
+                        <td>O Room se recusa a rodar consultas na Main Thread por padrão, evitando o travamento que na versão manual dependia da nossa disciplina.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>Em troca, o Room cobra: uma dependência extra, um plugin de compilação (KSP) e um tempo de build um pouco maior. Para um app com uma tabela só, é discutível. Para um app real, com várias entidades e relações, o custo se paga rápido.</p>
+
+            <div class="tip-box"><strong>Onde isso está no mercado:</strong> o Room faz parte do conjunto <strong>Jetpack</strong>, mantido pelo próprio Google, e é a solução de persistência local recomendada oficialmente para apps Android. Na prática, é o que você vai encontrar na maior parte dos projetos profissionais — e o que costuma ser cobrado em processos seletivos quando o assunto é banco de dados no Android.</div>
         </section>
 
         <section id="api-livros" class="acc-api">
@@ -381,6 +432,8 @@
             <div class="step-box" id="passo-0">
                 <h3>Passo 0 — Retomando (ou Recriando) o Projeto <span class="step-progress">setup</span></h3>
                 <p><strong>Caminho A — você tem o projeto da aula passada:</strong> abra-o normalmente no Android Studio. Sua <code>MainActivity</code> já chama <code>BibliotecaScreen()</code> — nada muda nela hoje. Pode ir direto pro Passo 1.</p>
+                <div class="tip-box"><strong>Seguindo o Caminho A?</strong> Confira antes se o <code>gradle/libs.versions.toml</code> ainda está com as versões fixadas na aula passada (<code>agp = "8.10.0"</code>, <code>composeBom = "2024.09.00"</code>, <code>coreKtx = "1.15.0"</code>) e o <code>compileSdk</code> em 35. Se o Android Studio tiver sugerido uma atualização no meio do caminho e você aceitou, esses valores podem ter mudado — e o projeto vai falhar ao adicionar o Room. Veja <a href="#erros">Erros Comuns</a>.</div>
+
                 <p><strong>Caminho B — você não tem o projeto (perdeu, trocou de computador, faltou na aula passada):</strong></p>
                 <ol>
                     <li>Crie um projeto novo: <strong>New Project &gt; Empty Activity</strong> (Compose), <strong>Name:</strong> BibliotecaApp, <strong>Package name:</strong> <code>com.seunome.biblioteca</code>, <strong>Language:</strong> Kotlin, <strong>Minimum SDK:</strong> API 24+.</li>
@@ -798,6 +851,80 @@ fun BibliotecaScreen(viewModel: BibliotecaViewModel = viewModel()) {
                     <li>O Database Inspector mostra a tabela <code>livros</code> populada com dados vindos da API.</li>
                     <li>Nenhuma classe de <code>ui</code> ou <code>viewmodel</code> importa Retrofit ou Room diretamente — só o Repository.</li>
                 </ul>
+            </div>
+        </section>
+
+        <section id="erros" class="acc-fix">
+            <div class="file-tag">07_troubleshooting.md</div>
+            <h2>Erros Comuns e Como Resolver</h2>
+            <p>O Room adiciona um passo de geração de código na compilação, o que cria uma família de erros nova. Procure aqui antes de recomeçar o projeto.</p>
+
+            <div class="erro-item">
+                <div class="erro-titulo">Cannot find implementation for BibliotecaDatabase. BibliotecaDatabase_Impl does not exist</div>
+                <div class="erro-corpo">
+                    <p><strong>Causa:</strong> o KSP não rodou. As anotações <code>@Entity</code>, <code>@Dao</code> e <code>@Database</code> sozinhas não fazem nada — quem gera a implementação de verdade é o processador, durante a compilação.</p>
+                    <p><strong>Solução:</strong> confirme que o plugin <code>id("com.google.devtools.ksp")</code> está no bloco <code>plugins { }</code> e que a linha <code>ksp("androidx.room:room-compiler:2.6.1")</code> está em <code>dependencies { }</code>. Depois faça <strong>Build &gt; Clean Project</strong> e sincronize.</p>
+                    <p><strong>Atenção:</strong> tem que ser <code>ksp(...)</code>, não <code>implementation(...)</code>, nessa linha específica do compilador.</p>
+                </div>
+            </div>
+
+            <div class="erro-item">
+                <div class="erro-titulo">Room cannot verify the data integrity / Migration didn't properly handle</div>
+                <div class="erro-corpo">
+                    <p><strong>Causa:</strong> você alterou a estrutura de uma <code>@Entity</code> (adicionou um campo, mudou um tipo) sem aumentar o número da <code>version</code> no <code>@Database</code>. O banco no aparelho tem uma estrutura diferente da que o código espera.</p>
+                    <p><strong>Solução em desenvolvimento:</strong> desinstale o app do emulador e rode de novo. Como usamos <code>fallbackToDestructiveMigration()</code>, aumentar a <code>version</code> também resolve — o Room apaga e recria o banco.</p>
+                    <p><strong>Em produção seria diferente:</strong> apagar o banco significaria perder os dados do usuário. Aí é necessário escrever uma migração de verdade, que transforma a estrutura antiga na nova preservando o conteúdo.</p>
+                </div>
+            </div>
+
+            <div class="erro-item">
+                <div class="erro-titulo">Not sure how to convert a Cursor to this method's return type</div>
+                <div class="erro-corpo">
+                    <p><strong>Causa:</strong> o tipo de retorno declarado no <code>@Dao</code> não corresponde ao que a consulta devolve — por exemplo, uma <code>@Query</code> que seleciona todas as colunas de <code>livros</code>, mas cujo retorno declarado não é <code>LivroEntity</code>.</p>
+                    <p><strong>Solução:</strong> confirme que o tipo dentro de <code>Flow&lt;List&lt;...&gt;&gt;</code> é exatamente a classe anotada com <code>@Entity</code> daquela tabela.</p>
+                </div>
+            </div>
+
+            <div class="erro-item">
+                <div class="erro-titulo">Cannot access database on the main thread</div>
+                <div class="erro-corpo">
+                    <p><strong>Causa:</strong> uma operação de banco foi chamada fora de uma Coroutine. O Room bloqueia isso de propósito, para não deixar a interface travar.</p>
+                    <p><strong>Solução:</strong> funções de escrita no <code>@Dao</code> devem ser <code>suspend</code>, e devem ser chamadas dentro de <code>viewModelScope.launch { }</code>. Já as funções de leitura que retornam <code>Flow</code> não precisam ser <code>suspend</code> — o Flow já é assíncrono por natureza.</p>
+                </div>
+            </div>
+
+            <div class="erro-item">
+                <div class="erro-titulo">A lista não atualiza depois de buscar na API</div>
+                <div class="erro-corpo">
+                    <p><strong>Verifique nesta ordem:</strong></p>
+                    <p>1. A tela está usando <code>collectAsState()</code> no <code>StateFlow</code>? Sem isso, o Compose não observa as mudanças.</p>
+                    <p>2. O <code>buscarEArmazenar()</code> realmente chama <code>dao.insertAll(...)</code>? É a gravação no banco que dispara a atualização — não a resposta da API.</p>
+                    <p>3. A <code>@Query</code> de leitura e o <code>@Insert</code> estão na mesma tabela? O Room só notifica quem observa a tabela que foi alterada.</p>
+                </div>
+            </div>
+
+            <div class="erro-item">
+                <div class="erro-titulo">requires libraries and applications that depend on it to compile against version 36 (ou 37) or later</div>
+                <div class="erro-corpo">
+                    <p><strong>Causa:</strong> alguma biblioteca ficou mais nova que o <code>compileSdk</code> do projeto. Costuma acontecer quando o "AGP Upgrade Assistant" é aceito e reescreve o <code>libs.versions.toml</code>.</p>
+                    <p><strong>Solução:</strong> volte o bloco <code>[versions]</code> para os valores fixados na aula passada e confirme <code>compileSdk = 35</code>. Procure também <em>entradas duplicadas</em> no arquivo (ex: um <code>coreKtxVersion</code> além do <code>coreKtx</code>) — apague as duplicadas e qualquer linha do <code>build.gradle.kts</code> que as referencie.</p>
+                </div>
+            </div>
+
+            <div class="erro-item">
+                <div class="erro-titulo">Unable to resolve host / falha ao buscar na Open Library</div>
+                <div class="erro-corpo">
+                    <p><strong>Causa mais comum:</strong> falta a permissão de internet. O projeto da aula passada não precisava dela, porque não acessava a rede.</p>
+                    <p><strong>Solução:</strong> confirme que <code>&lt;uses-permission android:name="android.permission.INTERNET" /&gt;</code> está no <code>AndroidManifest.xml</code>, acima da tag <code>&lt;application&gt;</code>.</p>
+                    <p><strong>Comportamento esperado:</strong> mesmo sem internet, os livros já salvos devem continuar aparecendo. Se a tela ficar vazia, o problema não é a rede — é o Single Source of Truth não estar implementado corretamente.</p>
+                </div>
+            </div>
+
+            <div class="erro-item">
+                <div class="erro-titulo">Quero confirmar que os dados foram mesmo gravados</div>
+                <div class="erro-corpo">
+                    <p>Com o app rodando, abra <strong>View &gt; Tool Windows &gt; App Inspection &gt; Database Inspector</strong>. Você verá a tabela <code>livros</code> sendo populada em tempo real conforme as buscas acontecem — é a forma mais direta de separar "problema de rede" de "problema de banco".</p>
+                </div>
             </div>
         </section>
 
